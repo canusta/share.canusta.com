@@ -1,25 +1,21 @@
 import fs from "fs/promises";
 import path from "path";
-import { isSafeFilename, isValidSlug } from "./security";
+import {
+  isSafeFilename,
+  isValidFileSlug,
+  isValidFolderSlug,
+} from "./security";
 
 const CONTENT_DIR = path.join(process.cwd(), "content");
 
-export type ShareMeta = {
-  title?: string;
-  description?: string;
-};
-
-export type ShareFile = {
-  name: string;
-  size: number;
-  mimeType: string;
-};
-
-export type Share = {
-  slug: string;
-  meta: ShareMeta;
-  files: ShareFile[];
-};
+const IMAGE_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".webp",
+  ".avif",
+]);
 
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -27,16 +23,15 @@ const MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
   ".gif": "image/gif",
   ".webp": "image/webp",
-  ".svg": "image/svg+xml",
-  ".pdf": "application/pdf",
-  ".zip": "application/zip",
-  ".mp4": "video/mp4",
-  ".webm": "video/webm",
-  ".mov": "video/quicktime",
-  ".mp3": "audio/mpeg",
-  ".wav": "audio/wav",
-  ".txt": "text/plain",
-  ".json": "application/json",
+  ".avif": "image/avif",
+};
+
+export type ImageShare = {
+  folder: string;
+  file: string;
+  filename: string;
+  size: number;
+  mimeType: string;
 };
 
 function getMimeType(filename: string): string {
@@ -44,41 +39,17 @@ function getMimeType(filename: string): string {
   return MIME_TYPES[ext] ?? "application/octet-stream";
 }
 
-function isImage(mimeType: string): boolean {
-  return mimeType.startsWith("image/") && mimeType !== "image/svg+xml";
+function isImageFile(filename: string): boolean {
+  return IMAGE_EXTENSIONS.has(path.extname(filename).toLowerCase());
 }
 
-function isVideo(mimeType: string): boolean {
-  return mimeType.startsWith("video/");
-}
+export async function getImageShare(
+  folder: string,
+  file: string
+): Promise<ImageShare | null> {
+  if (!isValidFolderSlug(folder) || !isValidFileSlug(file)) return null;
 
-function isAudio(mimeType: string): boolean {
-  return mimeType.startsWith("audio/");
-}
-
-export function getFileKind(
-  mimeType: string
-): "image" | "video" | "audio" | "pdf" | "other" {
-  if (isImage(mimeType)) return "image";
-  if (isVideo(mimeType)) return "video";
-  if (isAudio(mimeType)) return "audio";
-  if (mimeType === "application/pdf") return "pdf";
-  return "other";
-}
-
-async function readMeta(dir: string): Promise<ShareMeta> {
-  try {
-    const raw = await fs.readFile(path.join(dir, "meta.json"), "utf-8");
-    return JSON.parse(raw) as ShareMeta;
-  } catch {
-    return {};
-  }
-}
-
-export async function getShare(slug: string): Promise<Share | null> {
-  if (!isValidSlug(slug)) return null;
-
-  const dir = path.join(CONTENT_DIR, slug);
+  const dir = path.join(CONTENT_DIR, folder);
   try {
     const stat = await fs.stat(dir);
     if (!stat.isDirectory()) return null;
@@ -87,33 +58,38 @@ export async function getShare(slug: string): Promise<Share | null> {
   }
 
   const entries = await fs.readdir(dir, { withFileTypes: true });
-  const files: ShareFile[] = [];
 
   for (const entry of entries) {
-    if (!entry.isFile() || entry.name === "meta.json") continue;
-    if (!isSafeFilename(entry.name)) continue;
+    if (!entry.isFile() || !isSafeFilename(entry.name)) continue;
+    if (!isImageFile(entry.name)) continue;
+    if (path.parse(entry.name).name !== file) continue;
 
     const fileStat = await fs.stat(path.join(dir, entry.name));
-    files.push({
-      name: entry.name,
+    return {
+      folder,
+      file,
+      filename: entry.name,
       size: fileStat.size,
       mimeType: getMimeType(entry.name),
-    });
+    };
   }
 
-  if (files.length === 0) return null;
-
-  files.sort((a, b) => a.name.localeCompare(b.name));
-  const meta = await readMeta(dir);
-
-  return { slug, meta, files };
+  return null;
 }
 
-export function getShareFilePath(slug: string, filename: string): string | null {
-  if (!isValidSlug(slug) || !isSafeFilename(filename)) return null;
-  return path.join(CONTENT_DIR, slug, filename);
+export function getImageFilePath(
+  folder: string,
+  filename: string
+): string | null {
+  if (!isValidFolderSlug(folder) || !isSafeFilename(filename)) return null;
+  return path.join(CONTENT_DIR, folder, filename);
 }
 
-export function fileUrl(slug: string, filename: string): string {
-  return `/api/file/${encodeURIComponent(slug)}/${encodeURIComponent(filename)}`;
+export function imageUrl(
+  folder: string,
+  file: string,
+  download = false
+): string {
+  const base = `/api/file/${encodeURIComponent(folder)}/${encodeURIComponent(file)}`;
+  return download ? `${base}?download=1` : base;
 }

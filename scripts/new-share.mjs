@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir } from "fs/promises";
 import { randomBytes } from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -22,18 +22,6 @@ const slug = `${name}-${hash}`;
 const dir = path.join(contentDir, slug);
 
 await mkdir(dir, { recursive: true });
-await writeFile(
-  path.join(dir, "meta.json"),
-  JSON.stringify(
-    {
-      title: name.charAt(0).toUpperCase() + name.slice(1),
-      description: "",
-    },
-    null,
-    2
-  ) + "\n"
-);
 
-console.log(`Created share: content/${slug}/`);
-console.log(`URL: https://share.canusta.com/${slug}`);
-console.log("Add your files to that folder, then deploy.");
+console.log(`Created empty folder: content/${slug}/`);
+console.log(`Add images with: npm run new-image ${slug} path/to/image.jpg`);

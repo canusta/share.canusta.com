@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "new-share": "node scripts/new-share.mjs"
+    "new-share": "node scripts/new-share.mjs",
+    "new-image": "node scripts/new-image.mjs"
   },
   "dependencies": {
     "next": "16.2.10",
