@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono } from "next/font/google";
 import styles from "./page.module.css";
+import { CopyButton } from "./CopyButton";
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
@@ -27,11 +28,17 @@ export default function MonzoPage() {
     <main className={`${styles.page} ${ibmPlexMono.className}`}>
       <section className={styles.details} aria-labelledby="monzo-title">
         <h1 id="monzo-title" className={styles.title}>Monzo Details</h1>
+        <a className={styles.paymentLink} href="http://monzo.me/canusta">
+          monzo.me/canusta
+        </a>
         <dl className={styles.list}>
           {details.map(([label, value]) => (
-            <div key={label}>
-              <dt className={styles.label}>{label}: </dt>
-              <dd className={styles.value}>{value}</dd>
+            <div key={label} className={styles.row}>
+              <dt className={styles.label}>{label}</dt>
+              <dd className={styles.value}>
+                {value}
+                <CopyButton label={label} value={value} />
+              </dd>
             </div>
           ))}
         </dl>
